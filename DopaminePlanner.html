@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dopamine Planner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117; --surface: #161b22; --card: #1c2128; --border: #30363d;
+            --accent: #ff0080; --gold: #f0a500; --gym: #7928ca; --run: #f97316;
+            --swim: #0ea5e9; --core: #00dfd8; --cycle: #22c55e;
+            --text: #e6edf3; --muted: #8b949e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* TOP BAR */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+        .title { font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 2px; }
+        .title span { color: var(--accent); }
+        .top-right { display: flex; align-items: center; gap: 10px; }
+        .legend { display: flex; gap: 10px; align-items: center; font-size: 11px; }
+        .leg-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+
+        /* CONFIG */
+        .config-panel { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 14px; flex-shrink: 0; }
+        .config-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
+        .field { display: flex; flex-direction: column; gap: 2px; }
+        label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }
+        input, select { padding: 5px 8px; border-radius: 5px; border: 1px solid var(--border); font-size: 12px; font-family: 'DM Sans', sans-serif; background: var(--card); color: var(--text); outline: none; }
+        input:focus, select:focus { border-color: var(--accent); }
+        input[type=number] { width: 58px; }
+        input[type=date] { width: 128px; }
+
+        .muscle-section { border-top: 1px solid var(--border); padding-top: 7px; }
+        .muscle-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 1px; margin-bottom: 5px; }
+        .muscle-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+        .muscle-item { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+        .muscle-item label { font-size: 10px; }
+        .muscle-item input { width: 46px; text-align: center; }
+
+        .btn-generate { background: var(--accent); color: white; border: none; padding: 8px 20px; border-radius: 6px; font-family: 'Bebas Neue', sans-serif; font-size: 20px; cursor: pointer; letter-spacing: 1px; white-space: nowrap; }
+        .btn-generate:hover { opacity: 0.88; }
+
+        /* WARNINGS */
+        .warnings { padding: 4px 14px; flex-shrink: 0; display: flex; flex-direction: column; gap: 3px; }
+        .warn { padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+        .warn-amber { background: #2d1e00; border: 1px solid var(--gold); color: var(--gold); }
+        .warn-red   { background: #2d0011; border: 1px solid var(--accent); color: #ff6eb0; }
+        .warn-blue  { background: #0c1a2d; border: 1px solid var(--swim); color: #7dd3fc; }
+
+        /* WEEK GRID */
+        .week-wrap { flex: 1; padding: 6px 14px; overflow: hidden; }
+        .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 100%; }
+
+        .day-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+        .day-card.warn-leg { border-color: var(--gold); }
+        .day-card.over-limit { border-color: var(--accent); }
+
+        .day-header { padding: 5px 5px 5px 7px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .day-name { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; flex: 1; }
+        .day-date { font-size: 10px; color: var(--muted); flex: 1; text-align: center; }
+        .header-arrows { display: flex; gap: 3px; }
+        .arr-btn { cursor: pointer; font-size: 12px; padding: 2px 7px; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; color: var(--muted); line-height: 1.4; }
+        .arr-btn:hover { color: var(--accent); border-color: var(--accent); }
+        .arr-btn.disabled { opacity: 0.25; cursor: default; pointer-events: none; }
+
+        .day-body { padding: 5px; flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
+        .day-body::-webkit-scrollbar { width: 2px; }
+        .day-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .session { border-radius: 5px; padding: 4px 6px; flex-shrink: 0; }
+        .s-run   { background: linear-gradient(135deg,#c2410c,var(--run)); }
+        .s-cycle { background: linear-gradient(135deg,#15803d,var(--cycle)); }
+        .s-swim  { background: linear-gradient(135deg,#0369a1,var(--swim)); }
+        .s-gym   { background: linear-gradient(135deg,#5b21b6,var(--gym)); }
+        .s-core  { background: linear-gradient(135deg,#0e7490,var(--core)); color: #0d1117; }
+        .s-rest  { border: 1px dashed var(--border); color: var(--muted); text-align: center; padding: 18px 6px; border-radius: 6px; font-weight: 700; font-size: 11px; letter-spacing: 2px; margin-top: 8px; }
+
+        .drop-zone.drag-over { outline: 1px dashed var(--accent); border-radius: 5px; }
+        .s-label { font-size: 9px; font-weight: 800; text-transform: uppercase; opacity: 0.85; margin-bottom: 3px; display: block; letter-spacing: 0.5px; }
+        .pill-box { display: flex; flex-wrap: wrap; gap: 3px; }
+        .pill { background: rgba(255,255,255,0.18); padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; cursor: grab; border: 1px solid rgba(255,255,255,0.08); white-space: nowrap; }
+        .pill:hover { background: rgba(255,255,255,0.28); }
+        .pill.warn-pill { background: rgba(240,165,0,0.35); border-color: rgba(240,165,0,0.5); color: #fef3c7; }
+
+        /* SESSION COUNT BADGE */
+        .session-count { font-size: 9px; font-weight: 700; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; color: var(--muted); margin-left: 4px; }
+        .session-count.over { background: rgba(255,0,128,0.2); border-color: var(--accent); color: #ff6eb0; }
+
+        /* FOOTER */
+        .footer { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 7px 14px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+        .btn-sec { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 7px 18px; border-radius: 6px; font-family: 'Bebas Neue', sans-serif; font-size: 16px; cursor: pointer; letter-spacing: 1px; }
+        .btn-sec:hover { border-color: var(--accent); color: var(--accent); }
+        .copyright { font-size: 11px; color: var(--muted); margin-left: 16px; }
+        .copyright b { color: var(--gold); }
+
+        /* HISTORY MODAL */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 680px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; }
+        .modal-close { cursor: pointer; font-size: 18px; color: var(--muted); background: none; border: none; color: var(--muted); }
+        .modal-close:hover { color: var(--accent); }
+        .modal-body { padding: 12px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+        .history-week { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+        .history-week-header { background: var(--card); padding: 7px 12px; font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+        .history-week-label { color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 17px; }
+        .history-restore { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--border); padding: 3px 10px; border-radius: 3px; background: none; }
+        .history-restore:hover { color: var(--accent); border-color: var(--accent); }
+        .history-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+        .history-day { padding: 6px 7px; border-right: 1px solid var(--border); font-size: 10px; }
+        .history-day:last-child { border-right: none; }
+        .h-day-name { font-family: 'Bebas Neue', sans-serif; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+        .h-pill { display: inline-block; padding: 2px 5px; border-radius: 2px; font-size: 9px; font-weight: 700; margin: 1px 1px 1px 0; }
+        .h-run   { background: var(--run); color: white; }
+        .h-cycle { background: var(--cycle); color: #0d1117; }
+        .h-swim  { background: var(--swim); color: white; }
+        .h-gym   { background: var(--gym); color: white; }
+        .h-core  { background: var(--core); color: #0d1117; }
+        .h-rest  { color: var(--muted); font-style: italic; }
+        .no-history { color: var(--muted); font-size: 11px; text-align: center; padding: 24px; }
+    </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+    <h1 class="title">DOPAMINE <span>PLANNER</span></h1>
+    <div class="top-right">
+        <div class="legend">
+            <span><span class="leg-dot" style="background:var(--run)"></span>Run</span>
+            <span><span class="leg-dot" style="background:var(--cycle)"></span>Cycle</span>
+            <span><span class="leg-dot" style="background:var(--swim)"></span>Swim</span>
+            <span><span class="leg-dot" style="background:var(--gym)"></span>Gym</span>
+            <span><span class="leg-dot" style="background:var(--core)"></span>Core</span>
+        </div>
+        <div class="field"><label>Week Start</label><input type="date" id="start-date"></div>
+    </div>
+</div>
+
+<!-- CONFIG -->
+<div class="config-panel">
+    <div class="config-row">
+        <div class="field"><label>Gym Days</label><input type="number" id="gym-f" value="5" min="1" max="7"></div>
+        <div class="field"><label>Rest Day</label>
+            <select id="rest-select">
+                <option value="0">Mon</option><option value="1">Tue</option><option value="2">Wed</option>
+                <option value="3">Thu</option><option value="4">Fri</option><option value="5" selected>Fri</option>
+                <option value="5">Sat</option><option value="6">Sun</option>
+            </select>
+        </div>
+        <div class="field"><label>Long Run Day</label>
+            <select id="lr-select">
+                <option value="5">Sat</option><option value="6" selected>Sun</option>
+                <option value="0">Mon</option><option value="1">Tue</option>
+                <option value="2">Wed</option><option value="3">Thu</option><option value="4">Fri</option>
+            </select>
+        </div>
+        <div class="field"><label>Runs</label><input type="number" id="run-f" value="4" min="0" max="7"></div>
+        <div class="field"><label>Cycles</label><input type="number" id="cyc-f" value="2" min="0" max="7"></div>
+        <div class="field"><label>Swims</label><input type="number" id="swim-f" value="0" min="0" max="7"></div>
+        <div class="field"><label>Max Sessions/Day</label><input type="number" id="max-sess" value="3" min="1" max="3"></div>
+        <button class="btn-generate" onclick="generate()">⚡ GENERATE PLAN</button>
+    </div>
+    <div class="muscle-section">
+        <div class="muscle-label">Muscle Frequency (sessions/week)</div>
+        <div class="muscle-grid" id="m-inputs"></div>
+    </div>
+</div>
+
+<!-- WARNINGS -->
+<div class="warnings" id="warnings"></div>
+
+<!-- WEEK GRID -->
+<div class="week-wrap">
+    <div class="week-grid" id="main-grid"></div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+    <button class="btn-sec" onclick="openHistory()">📋 HISTORY</button>
+    <button class="btn-sec" onclick="exportPlan()">↓ EXPORT</button>
+    <button class="btn-sec" onclick="generate()">↺ REGENERATE</button>
+    <span class="copyright">© <b>Yugesh Singh</b> 2026</span>
+</div>
+
+<!-- HISTORY MODAL -->
+<div class="modal-overlay" id="history-modal" onclick="closeHistoryOutside(event)">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">SCHEDULE HISTORY — LAST 4 WEEKS</span>
+            <button class="modal-close" onclick="closeHistory()">✕</button>
+        </div>
+        <div class="modal-body" id="history-body"></div>
+    </div>
+</div>
+
+<script>
+// ─── CONSTANTS ─────────────────────────────────────────────────────────────
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const LEG_MUSCLES = new Set(['Quads','Hams','Glutes','Add']);
+const MAX_HISTORY = 4;
+const MUSCLES = [
+    {n:'Quads',f:2},{n:'Glutes',f:1},{n:'Hams',f:1},{n:'Calves',f:1},
+    {n:'Add',f:1},{n:'Abd',f:1},{n:'Lats',f:1},{n:'U-Back',f:1},
+    {n:'L-Back',f:1},{n:'Chest',f:1},{n:'Shoulders',f:2},
+    {n:'Biceps',f:2},{n:'Triceps',f:2},{n:'Forearms',f:1},{n:'Core',f:3}
+];
+
+let week = [];
+let warnings = [];
+let bestEffort = false;
+let history = JSON.parse(localStorage.getItem('dp_history') || '[]');
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+document.getElementById('start-date').valueAsDate = new Date();
+
+function buildMuscleInputs() {
+    const div = document.getElementById('m-inputs');
+    div.innerHTML = '';
+    MUSCLES.forEach(m => {
+        div.innerHTML += `<div class="muscle-item"><label>${m.n}</label>
+        <input type="number" class="m-val" data-name="${m.n}" value="${m.f}" min="0" max="7"></div>`;
+    });
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+function sessionCount(day) {
+    let c = 0;
+    if (day.cardio.length) c++;
+    if (day.gym.length) c++;
+    if (day.core.length) c++;
+    return c;
+}
+
+function isLegDay(day) {
+    return day && !day.isRest && day.gym.some(m => LEG_MUSCLES.has(m));
+}
+
+function findPair(gymDays, usedSlots) {
+    let best = null, bestScore = -1;
+    for (let i = 0; i < gymDays.length; i++) {
+        for (let j = i + 1; j < gymDays.length; j++) {
+            const gap = Math.abs(gymDays[i].id - gymDays[j].id);
+            if (gap < 2) continue;
+            const score = gap === 3 ? 100 : gap === 4 ? 80 : gap === 2 ? 60 : 40;
+            const load = (usedSlots[gymDays[i].id] || 0) + (usedSlots[gymDays[j].id] || 0);
+            const net = score - load * 5;
+            if (net > bestScore) { bestScore = net; best = [gymDays[i], gymDays[j]]; }
+        }
+    }
+    return best;
+}
+
+// ─── GENERATE ──────────────────────────────────────────────────────────────
+function generate() {
+    warnings = [];
+    bestEffort = false;
+
+    const restIdx   = parseInt(document.getElementById('rest-select').value);
+    const lrIdx     = parseInt(document.getElementById('lr-select').value);
+    const gymLimit  = parseInt(document.getElementById('gym-f').value);
+    const totalRuns = parseInt(document.getElementById('run-f').value);
+    const totalCyc  = parseInt(document.getElementById('cyc-f').value);
+    const totalSwim = parseInt(document.getElementById('swim-f').value);
+    const maxSess   = parseInt(document.getElementById('max-sess').value);
+
+    // Build week skeleton
+    week = DAYS.map((name, i) => ({
+        id: i, name, gym: [], cardio: [], core: [], isRest: i === restIdx
+    }));
+
+    // Long Run fixed
+    if (!week[lrIdx].isRest) {
+        week[lrIdx].cardio.push('Long Run');
+    }
+
+    const gymDays = week.filter(d => !d.isRest).slice(0, gymLimit);
+    const usedSlots = {};
+
+    // Read muscle inputs
+    const muscleDefs = {};
+    document.querySelectorAll('.m-val').forEach(el => {
+        muscleDefs[el.dataset.name] = parseInt(el.value) || 0;
+    });
+
+    // ── Freq=2 muscles ────────────────────────────────────────────────────
+    const freq2muscles = Object.entries(muscleDefs)
+        .filter(([n, f]) => f === 2 && n !== 'Core').map(([n]) => n);
+
+    freq2muscles.forEach(name => {
+        const pair = findPair(gymDays, usedSlots);
+        if (!pair) { warnings.push({type:'red', msg:`Cannot place ${name} without successive days.`}); bestEffort=true; return; }
+        pair.forEach(d => {
+            if (!canAddGym(d, maxSess)) { bestEffort = true; return; }
+            d.gym.push(name);
+            usedSlots[d.id] = (usedSlots[d.id]||0) + 1;
+        });
+    });
+
+    // ── Freq=1 muscles ────────────────────────────────────────────────────
+    const freq1muscles = Object.entries(muscleDefs)
+        .filter(([n, f]) => f === 1 && n !== 'Core').map(([n]) => n);
+
+    freq1muscles.forEach(name => {
+        const isLeg = LEG_MUSCLES.has(name);
+        const sorted = [...gymDays].sort((a,b)=>(usedSlots[a.id]||0)-(usedSlots[b.id]||0));
+        let placed = false;
+        for (const d of sorted) {
+            if (!canAddGym(d, maxSess)) continue;
+            if (isLeg) {
+                const prev = d.id > 0 ? week[d.id-1] : null;
+                const next = d.id < 6 ? week[d.id+1] : null;
+                if (isLegDay(prev) || isLegDay(next)) continue;
+            }
+            d.gym.push(name); usedSlots[d.id]=(usedSlots[d.id]||0)+1; placed=true; break;
+        }
+        if (!placed) {
+            const fallback = [...gymDays].filter(d=>canAddGym(d,maxSess)).sort((a,b)=>(usedSlots[a.id]||0)-(usedSlots[b.id]||0))[0];
+            if (fallback) {
+                fallback.gym.push(name); usedSlots[fallback.id]=(usedSlots[fallback.id]||0)+1;
+                if (isLeg) { warnings.push({type:'amber', msg:`${name}: back-to-back leg days unavoidable — review manually.`}); bestEffort=true; }
+            } else {
+                warnings.push({type:'red', msg:`${name}: could not place — all days at max sessions.`}); bestEffort=true;
+            }
+        }
+    });
+
+    // ── Freq≥3 muscles ────────────────────────────────────────────────────
+    const freqNmuscles = Object.entries(muscleDefs)
+        .filter(([n,f])=>f>=3&&n!=='Core').map(([n,f])=>({n,f}));
+    freqNmuscles.forEach(({n,f})=>{
+        const step = Math.max(1, Math.floor(gymDays.length/f));
+        for (let i=0; i<f && i*step<gymDays.length; i++) {
+            const d = gymDays[i*step];
+            if (!canAddGym(d,maxSess)) { bestEffort=true; continue; }
+            d.gym.push(n); usedSlots[d.id]=(usedSlots[d.id]||0)+1;
+        }
+    });
+
+    // ── Core: spread evenly ───────────────────────────────────────────────
+    const coreFreq = muscleDefs['Core']||0;
+    const coreDays = week.filter(d=>!d.isRest);
+    if (coreFreq>0 && coreDays.length>0) {
+        const step = Math.max(1, Math.floor(coreDays.length/coreFreq));
+        for (let i=0; i<coreFreq; i++) {
+            const d = coreDays[Math.min(i*step, coreDays.length-1)];
+            if (sessionCount(d) < maxSess || d.core.length===0) d.core.push('Core');
+            else { bestEffort=true; }
+        }
+    }
+
+    // ── Cardio: Long Run placed, now Swim → Run → Cycle ──────────────────
+    let swimLeft = totalSwim;
+    let runsLeft = totalRuns - (week[lrIdx].cardio.includes('Long Run') ? 1 : 0);
+    let cycLeft  = totalCyc;
+
+    // Warn if Long Run follows a leg day
+    if (lrIdx > 0 && isLegDay(week[lrIdx-1])) {
+        warnings.push({type:'amber', msg:`Long Run (${DAYS[lrIdx]}) follows a leg day (${DAYS[lrIdx-1]}). Consider swapping days.`});
+    }
+
+    const cardioPool = week.filter(d => !d.isRest && !d.cardio.includes('Long Run'));
+    cardioPool.forEach(d => {
+        if (swimLeft<=0 && runsLeft<=0 && cycLeft<=0) return;
+        if (sessionCount(d) >= maxSess) { bestEffort=true; return; }
+        const prev = d.id>0 ? week[d.id-1] : null;
+        const prevWasLeg = isLegDay(prev);
+        if (swimLeft>0) { d.cardio.push('Swim'); swimLeft--; }
+        else if (runsLeft>0 && !prevWasLeg) { d.cardio.push('Run'); runsLeft--; }
+        else if (cycLeft>0) { d.cardio.push('Cycle'); cycLeft--; }
+        else if (runsLeft>0) { d.cardio.push('Run'); runsLeft--; warnings.push({type:'amber',msg:`Run on ${d.name} follows a leg day — consider Cycle.`}); }
+    });
+
+    if (runsLeft>0||cycLeft>0||swimLeft>0) {
+        warnings.push({type:'amber',msg:`Could not schedule all cardio sessions — ${runsLeft} run(s), ${cycLeft} cycle(s), ${swimLeft} swim(s) unplaced.`});
+        bestEffort=true;
+    }
+
+    // ── Post-scan: back-to-back leg days ─────────────────────────────────
+    for (let i=1; i<7; i++) {
+        if (!week[i].isRest && !week[i-1].isRest && isLegDay(week[i]) && isLegDay(week[i-1])) {
+            warnings.push({type:'amber', msg:`Back-to-back leg days: ${DAYS[i-1]} + ${DAYS[i]} — use ← → to swap.`});
+            bestEffort=true;
+        }
+    }
+
+    if (bestEffort) {
+        warnings.unshift({type:'blue', msg:'⚡ This is the best possible plan given your parameters — manual adjustment recommended.'});
+    }
+
+    // Save to history
+    saveToHistory();
+    render();
+}
+
+function canAddGym(d, maxSess) {
+    // gym session is 1 slot; check if adding one more would exceed
+    const gymAsSession = d.gym.length > 0 ? 1 : 0; // already counts as 1 session
+    // total sessions = (cardio>0?1:0) + (gym>0?1:0) + (core>0?1:0)
+    // If gym is empty, adding first muscle doesn't create a new block yet; if gym already has something it's already 1 session
+    const currentSessions = (d.cardio.length?1:0) + (d.gym.length?1:0) + (d.core.length?1:0);
+    const wouldBeNewSession = d.gym.length === 0; // adding to empty gym creates a new session block
+    return !wouldBeNewSession || currentSessions < maxSess;
+}
+
+// ─── HISTORY ───────────────────────────────────────────────────────────────
+function saveToHistory() {
+    const startDate = document.getElementById('start-date').valueAsDate || new Date();
+    const entry = {
+        date: startDate.toISOString(),
+        week: week.map(d => ({
+            name: d.name, isRest: d.isRest,
+            gym: [...d.gym], cardio: [...d.cardio], core: [...d.core]
+        }))
+    };
+    // Avoid saving identical consecutive plans
+    history.unshift(entry);
+    if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+    localStorage.setItem('dp_history', JSON.stringify(history));
+}
+
+function openHistory() {
+    const body = document.getElementById('history-body');
+    body.innerHTML = '';
+    if (!history.length) {
+        body.innerHTML = '<div class="no-history">No history yet. Generate a plan to save it.</div>';
+    } else {
+        history.forEach((entry, idx) => {
+            const d = new Date(entry.date);
+            const label = d.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+            const endD = new Date(d); endD.setDate(d.getDate()+6);
+            const endLabel = endD.toLocaleDateString('en-IN', {day:'numeric', month:'short'});
+            const weeksAgo = idx === 0 ? 'Latest' : `${idx} week${idx>1?'s':''} ago`;
+
+            let daysHtml = entry.week.map(day => {
+                if (day.isRest) return `<div class="history-day"><div class="h-day-name">${day.name}</div><div class="h-rest">Rest</div></div>`;
+                let pills = '';
+                day.cardio.forEach(c => {
+                    const cls = c.toLowerCase().includes('run') ? 'h-run' : c==='Cycle'?'h-cycle':'h-swim';
+                    pills += `<span class="h-pill ${cls}">${c}</span>`;
+                });
+                day.gym.forEach(m => pills += `<span class="h-pill h-gym">${m}</span>`);
+                day.core.forEach(() => pills += `<span class="h-pill h-core">Core</span>`);
+                return `<div class="history-day"><div class="h-day-name">${day.name}</div>${pills}</div>`;
+            }).join('');
+
+            body.innerHTML += `
+            <div class="history-week">
+                <div class="history-week-header">
+                    <span class="history-week-label">${label} – ${endLabel}</span>
+                    <span style="color:var(--muted);font-size:9px;">${weeksAgo}</span>
+                    <button class="history-restore" onclick="restoreHistory(${idx})">RESTORE</button>
+                </div>
+                <div class="history-grid">${daysHtml}</div>
+            </div>`;
+        });
+    }
+    document.getElementById('history-modal').classList.add('open');
+}
+
+function restoreHistory(idx) {
+    const entry = history[idx];
+    if (!entry) return;
+    week = entry.week.map((d, i) => ({...d, id: i}));
+    closeHistory();
+    renderGrid();
+    renderWarnings();
+}
+
+function closeHistory() { document.getElementById('history-modal').classList.remove('open'); }
+function closeHistoryOutside(e) { if (e.target.id==='history-modal') closeHistory(); }
+
+// ─── RENDER ────────────────────────────────────────────────────────────────
+function render() { renderWarnings(); renderGrid(); }
+
+function renderWarnings() {
+    const box = document.getElementById('warnings');
+    box.innerHTML = '';
+    warnings.forEach(w => {
+        const icon = w.type==='red'?'✕':w.type==='blue'?'⚡':'⚠';
+        box.innerHTML += `<div class="warn warn-${w.type==='red'?'red':w.type==='blue'?'blue':'amber'}">${icon} ${w.msg}</div>`;
+    });
+}
+
+function renderGrid() {
+    const grid = document.getElementById('main-grid');
+    grid.innerHTML = '';
+    const startDate = document.getElementById('start-date').valueAsDate || new Date();
+    const maxSess = parseInt(document.getElementById('max-sess').value);
+
+    week.forEach((day, i) => {
+        const sc = day.isRest ? 0 : sessionCount(day);
+        const overLimit = sc > maxSess;
+        const legWarn = !day.isRest && i>0 && isLegDay(day) && isLegDay(week[i-1]) && !week[i-1].isRest;
+
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        const dateStr = d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+
+        const leftDisabled = i === 0 ? ' disabled' : '';
+        const rightDisabled = i === 6 ? ' disabled' : '';
+
+        const col = document.createElement('div');
+        col.className = `day-card${legWarn?' warn-leg':''}${overLimit?' over-limit':''}`;
+        col.innerHTML = `
+        <div class="day-header">
+            <span class="arr-btn${leftDisabled}" onclick="swapWithLeft(${i})">←</span>
+            <span class="day-name">${day.name}</span>
+            <span class="day-date">${dateStr}
+                ${!day.isRest ? `<span class="session-count${overLimit?' over':''}">${sc}/${maxSess}</span>` : ''}
+            </span>
+            <span class="arr-btn${rightDisabled}" onclick="swapWithRight(${i})">→</span>
+        </div>
+        <div class="day-body drop-zone"
+             ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="handleDrop(event,${i})">
+            ${day.isRest
+                ? `<div class="s-rest">REST DAY</div>`
+                : `${sessionBlock(day.cardio,'s-run','Cardio',i)}
+                   ${sessionBlock(day.gym,'s-gym','Strength',i,day)}
+                   ${sessionBlock(day.core,'s-core','Stability',i)}`
+            }
+        </div>`;
+        grid.appendChild(col);
+    });
+}
+
+function sessionBlock(list, cls, label, dayIdx, day) {
+    if (!list||!list.length) return '';
+    // Pick correct gradient for cardio type
+    let resolvedCls = cls;
+    if (label==='Cardio' && list.length) {
+        const item = list[0];
+        if (item==='Cycle') resolvedCls='s-cycle';
+        else if (item==='Swim') resolvedCls='s-swim';
+        else resolvedCls='s-run';
+    }
+    const pills = list.map(item => {
+        const isLeg = LEG_MUSCLES.has(item);
+        const legWarn = day && isLeg && dayIdx>0 && isLegDay(week[dayIdx-1]) && !week[dayIdx-1].isRest;
+        return `<span class="pill${legWarn?' warn-pill':''}" draggable="true"
+                    ondragstart="handleDrag(event,'${label}',${dayIdx},'${item}')">${item}</span>`;
+    }).join('');
+    return `<div class="session ${resolvedCls}">
+        <span class="s-label">${label}</span>
+        <div class="pill-box">${pills}</div>
+    </div>`;
+}
+
+// ─── SWAP (adjacent day blocks) ────────────────────────────────────────────
+function swapDays(a, b) {
+    ['gym','cardio','core','isRest'].forEach(k => { [week[a][k], week[b][k]] = [week[b][k], week[a][k]]; });
+    reCheckWarnings();
+    renderGrid();
+    renderWarnings();
+}
+function swapWithLeft(i)  { if (i>0) swapDays(i, i-1); }
+function swapWithRight(i) { if (i<6) swapDays(i, i+1); }
+
+function reCheckWarnings() {
+    warnings = warnings.filter(w => !w.msg.includes('Back-to-back') && !w.msg.includes('follows a leg day'));
+    for (let i=1; i<7; i++) {
+        if (!week[i].isRest && !week[i-1].isRest && isLegDay(week[i]) && isLegDay(week[i-1])) {
+            warnings.push({type:'amber', msg:`Back-to-back leg days: ${DAYS[i-1]} + ${DAYS[i]} — use ← → to swap.`});
+        }
+    }
+    const lrIdx = parseInt(document.getElementById('lr-select').value);
+    if (lrIdx>0 && isLegDay(week[lrIdx-1])) {
+        warnings.push({type:'amber', msg:`Long Run (${DAYS[lrIdx]}) follows a leg day (${DAYS[lrIdx-1]}). Consider swapping.`});
+    }
+}
+
+// ─── DRAG & DROP (pills) ───────────────────────────────────────────────────
+function handleDrag(e, type, dayIdx, name) {
+    e.dataTransfer.setData("text", JSON.stringify({type, dayIdx, name}));
+}
+function dragOver(e)  { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function dragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function handleDrop(e, ti) {
+    e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+    const data = JSON.parse(e.dataTransfer.getData("text"));
+    const src = week[data.dayIdx]; const tgt = week[ti];
+    const map = {'Strength':'gym','Cardio':'cardio','Stability':'core'};
+    src[map[data.type]] = src[map[data.type]].filter(x=>x!==data.name);
+    tgt[map[data.type]].push(data.name);
+    reCheckWarnings(); render();
+}
+
+// ─── EXPORT ────────────────────────────────────────────────────────────────
+function exportPlan() {
+    const startDate = document.getElementById('start-date').valueAsDate || new Date();
+    const rows = [['Day','Date','Cardio','Strength','Stability','Notes']];
+    week.forEach((d, i) => {
+        const dt = new Date(startDate);
+        dt.setDate(startDate.getDate() + i);
+        const dateStr = dt.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+        if (d.isRest) {
+            rows.push([d.name, dateStr, '', '', '', 'REST DAY']);
+        } else {
+            rows.push([d.name, dateStr, d.cardio.join(' | '), d.gym.join(' | '), d.core.join(' | '), '']);
+        }
+    });
+    const csv = rows.map(r => r.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='dopamine_plan.csv'; a.click();
+}
+
+// ─── BOOT ──────────────────────────────────────────────────────────────────
+buildMuscleInputs();
+generate();
+</script>
+</body>
+</html>
